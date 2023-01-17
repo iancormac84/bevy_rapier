@@ -169,7 +169,7 @@ fn setup(mut cmds: Commands, mut meshes: ResMut<Assets<Mesh>>) {
         // https://github.com/Toqozz/bevy_debug_lines/issues/16
         //mesh.set_indices(Some(Indices::U16(Vec::with_capacity(MAX_POINTS_PER_MESH))));
 
-        let mut entity_cmd = cmds.spawn_bundle((
+        let mut entity_cmd = cmds.spawn((
             Transform::default(),
             GlobalTransform::default(),
             Visibility::default(),
@@ -181,7 +181,7 @@ fn setup(mut cmds: Commands, mut meshes: ResMut<Assets<Mesh>>) {
         let mesh_handle = meshes.add(mesh);
 
         #[cfg(feature = "debug-render-3d")]
-        entity_cmd.insert_bundle((
+        entity_cmd.insert((
             mesh_handle.clone(),
             bevy::pbr::NotShadowCaster,
             bevy::pbr::NotShadowReceiver,
