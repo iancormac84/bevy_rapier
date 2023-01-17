@@ -57,13 +57,10 @@ impl<PhysicsHooksData: 'static + WorldQuery + Send + Sync> RapierPhysicsPlugin<P
     /// See [`PhysicsStages`] for a description of these systems.
     pub fn get_systems(stage: PhysicsStages) -> SystemSet {
         match stage {
+            PhysicsStages::CharacterControllerManipulation => SystemSet::new()
+                    .with_system(systems::update_character_controls), // Run the character controller before the manual transform propagation.
             PhysicsStages::SyncBackend => {
-                let systems = SystemSet::new()
-                    .with_system(systems::update_character_controls) // Run the character controller before the manual transform propagation.
-                    .with_system(
-                        bevy::transform::transform_propagate_system_set
-                            .after(systems::update_character_controls),
-                    ) // Run Bevy transform propagation additionally to sync [`GlobalTransform`]
+                let systems = bevy::transform::transform_propagate_system_set() // Run Bevy transform propagation additionally to sync [`GlobalTransform`]
                     .with_system(
                         systems::init_async_colliders
                             .after(bevy::transform::transform_propagate_system_set),
@@ -142,9 +139,13 @@ impl<PhysicsHooksData> Default for RapierPhysicsPlugin<PhysicsHooksData> {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 /// [`StageLabel`] for each phase of the plugin.
 pub enum PhysicsStages {
+    /// This stage runs the responsible for applying the character
+    /// controller translation to the underlying collider.
+    /// This system typically runs at the after [`CoreStage::Update`].
+    CharacterControllerManipulation,
     /// This stage runs the systems responsible for synchronizing (and
     /// initializing) backend data structures with current component state.
-    /// These systems typically run at the after [`CoreStage::Update`].
+    /// These systems typically run at the after [`PhysicsStages::CharacterControllerManipulation`].
     SyncBackend,
     /// The systems responsible for advancing the physics simulation, and
     /// updating the internal state for scene queries.
@@ -207,6 +208,12 @@ impl<PhysicsHooksData: 'static + WorldQuery + Send + Sync> Plugin
         if self.default_system_setup {
             app.add_stage_after(
                 CoreStage::Update,
+                PhysicsStages::CharacterControllerManipulation,
+                SystemStage::parallel()
+                    .with_system_set(Self::get_systems(PhysicsStages::CharacterControllerManipulation)),
+            );
+            app.add_stage_after(
+                PhysicsStages::CharacterControllerManipulation,
                 PhysicsStages::SyncBackend,
                 SystemStage::parallel()
                     .with_system_set(Self::get_systems(PhysicsStages::SyncBackend)),
